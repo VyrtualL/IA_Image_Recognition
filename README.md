@@ -50,19 +50,19 @@ where `σ(z) = 1 / (1 + e^(-z))`.
 
 The target vector `error_wanted` is a one-hot encoding of the digit label (ex : digit `3` → `[0,0,0,1,0,0,0,0,0,0]`).
 
-The per-output error used on my code is simply:
+The per-output error used on my code is simply :
 
 ```text
 error_k = t_k - o_k
 ```
 
-where `t_k` is the target and `o_k` the network's output for class `k`. Propagated through the sigmoid derivative, this corresponds to minimizing the classic **sum-of-squared-error (SSE)** loss:
+where `t_k` is the target and `o_k` the network's output for class `k`. Propagated through the sigmoid derivative, this corresponds to minimizing the classic **sum-of-squared-error (SSE)** loss :
 
 ```text
 E = 1/2 * Σ_k (t_k - o_k)²
 ```
 
-This is the loss implicitly used by the **generalized delta rule** (Widrow–Hoff rule generalized to multilayer networks), as opposed to the **categorical cross-entropy** loss that is the standard pairing with a true softmax output:
+This is the loss implicitly used by the **generalized delta rule** (Widrow–Hoff rule generalized to multilayer networks), as opposed to the **categorical cross-entropy** loss that is the standard pairing with a true softmax output :
 
 ```text
 L_cross_entropy = - Σ_k  t_k * log(o_k)
@@ -126,14 +126,14 @@ b¹ ← b¹ - αδ¹
 
 ## Build & Run
 
-The code targets **SDL 1.2** (`#include <SDL/SDL.h>`). On Debian/Ubuntu:
+The code targets **SDL 1.2** (`#include <SDL/SDL.h>`). On Debian/Ubuntu :
 
 ```bash
 sudo apt-get install libsdl1.2-dev libsdl-image1.2-dev
 gcc main.c ite.c init.c gen.c -o mlp $(sdl-config --cflags --libs) -lSDL_image -lm
 ```
 
-Run (the program trains first, then classifies the given image):
+Run (the program trains first, then classifies the given image) :
 
 ```bash
 ./mlp path/to/digit.bmp
