@@ -1,4 +1,4 @@
-# Digit-Recognizer MLP (from scratch in C)
+# Digit Recognition MLP (from scratch in C)
 
 A Multi-Layer Perceptron implemented from scratch in C (no ML library) that classifies handwritten digits (0 to 9) from `28×28` BMP images. 
 SDL/SDL_image is only used to read pixels.
