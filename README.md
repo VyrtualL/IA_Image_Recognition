@@ -1,30 +1,37 @@
 # Digit-Recognizer MLP (from scratch in C)
 
-A Multi-Layer Perceptron implemented from scratch in C (no ML library) that classifies handwritten digits (0–9) from `28×28` BMP images. 
+A Multi-Layer Perceptron implemented from scratch in C (no ML library) that classifies handwritten digits (0 to 9) from `28×28` BMP images. 
 SDL/SDL_image is only used to read pixels.
 
 ## Initialization
 
-All weights are initialized with a random uniform value in `[-1, 1]`:
+All weights are initialized with a random uniform value in `[-1, 1]` :
+Biases `b¹`, `b²`, `b³` are initialized the same way.
 
 ```text
 W ~ U(-1, 1)
 ```
 
-Layers: `W¹` (input→hidden1), `W²` (hidden1→hidden2), `W³` (hidden2→output). Biases `b¹`, `b²`, `b³` are initialized the same way.
+## Network Architecture
 
-## Architecture
+A fully-connected feedforward network with 2 hidden layers :
 
 ```
-Input (784)  →  Hidden 1 (100)  →  Hidden 2 (100)  →  Output (10)
-   x                a¹                 a²                a³
+Input Layer        Hidden Layer 1      Hidden Layer 2      Output Layer
+  784 neurons   →    100 neurons    →    100 neurons    →   10 neurons
+ (28×28 image)        (sigmoid)           (sigmoid)          (sigmoid)
 ```
 
-Fully connected, sigmoid activation on every layer.
+| Layer | Size | Weight matrix to next layer | Bias vector |
+|---|---|---|---|
+| Input | 784 | `w_i_h[784][100]` | — |
+| Hidden 1 | 100 | `w_h_h[100][100]` | `b_f_h[100]` |
+| Hidden 2 | 100 | `w_h_o[100][10]` | `b_s_h[100]` |
+| Output | 10 | — | `b_o_l[10]` |
 
 ## Forward Propagation
 
-For each layer:
+For each layer :
 
 ```text
 z¹ = W¹ᵀx  - b¹
@@ -39,29 +46,46 @@ a³ = σ(z³)
 
 where `σ(z) = 1 / (1 + e^(-z))`.
 
-## Loss
+## Loss Function
 
-`y` is the one-hot target vector for the current image's label.
+The target vector `error_wanted` is a one-hot encoding of the digit label (ex : digit `3` → `[0,0,0,1,0,0,0,0,0,0]`).
+
+The per-output error used on my code is simply:
 
 ```text
-e = y - a³
+error_k = t_k - o_k
 ```
+
+where `t_k` is the target and `o_k` the network's output for class `k`. Propagated through the sigmoid derivative, this corresponds to minimizing the classic **sum-of-squared-error (SSE)** loss:
+
+```text
+E = 1/2 * Σ_k (t_k - o_k)²
+```
+
+This is the loss implicitly used by the **generalized delta rule** (Widrow–Hoff rule generalized to multilayer networks), as opposed to the **categorical cross-entropy** loss that is the standard pairing with a true softmax output:
+
+```text
+L_cross_entropy = - Σ_k  t_k * log(o_k)
+```
+
+Cross-entropy + softmax is the modern standard for classification because the loss directly models a probability distribution over classes. 
+I used quared error + sigmoid because it is the original formulation used in Rumelhart, Hinton & Williams' 1986 backpropagation paper (it works, but converges less clean for multi-class problems than softmax + cross-entropy).
 
 ## Backpropagation
 
-Output gradient signal:
+Output gradient signal :
 
 ```text
 δ³ = a³(1 - a³) ⊙ e
 ```
 
-Second hidden layer gradient signal:
+Second hidden layer gradient signal :
 
 ```text
 δ² = a²(1 - a²) ⊙ (W³δ³)
 ```
 
-First hidden layer gradient signal:
+First hidden layer gradient signal :
 
 ```text
 δ¹ = a¹(1 - a¹) ⊙ (W²δ²)
@@ -69,9 +93,9 @@ First hidden layer gradient signal:
 
 ## Weight & Bias Updates
 
-Learning rate `α = 0.1`. Updates are applied immediately after every single image (online SGD, no batching, no momentum).
+Learning rate `α = 0.1`.
 
-Weight updates:
+Weight updates :
 
 ```text
 W³ ← W³ + α a²(δ³)ᵀ
@@ -79,7 +103,7 @@ W² ← W² + α a¹(δ²)ᵀ
 W¹ ← W¹ + α x(δ¹)ᵀ
 ```
 
-Bias updates, because the implementation uses `z = weighted_sum - b`:
+Bias updates :
 
 ```text
 b³ ← b³ - αδ³
@@ -87,27 +111,30 @@ b² ← b² - αδ²
 b¹ ← b¹ - αδ¹
 ```
 
-## Data Pipeline
-
-**Preprocessing** — each pixel is binarized on its red channel:
-
-```text
-pixel = 0  if R < 125
-pixel = 1  if R ≥ 125
-```
-
-The `28×28` image is flattened row-major into the `784`-length input vector `x`.
-
-**Labeling convention** — training files are named `0.bmp` … `399.bmp` (`X.bmp`, `XX.bmp`, or `XXX.bmp` depending on the number of digits). The one-hot label of file `b` is `b % 10`: files `0, 10, 20, …` are digit `0`, files `1, 11, 21, …` are digit `1`, etc.
-
 ## Training Loop
 
 - **75 epochs**, **400 images per epoch** → 30,000 forward/backward passes total.
-- Pure online (single-sample) gradient descent, fixed `α = 0.1`.
-- Each run retrains the whole network from scratch before predicting — no saving/loading of weights.
 
-## Prediction
+## File Structure
 
-```text
-ŷ = argmax_l(a³_l)
+| File | Role |
+|---|---|
+| `main.c` | Entry point : initializes weights/biases, calls `gen()` to train, loads the target image, runs a final forward pass, prints the prediction. |
+| `ite.c` | `ite()` One full training iteration : forward pass, error computation, backpropagation (gradients), and weight/bias updates for a single image. |
+| `init.c` | Weight/bias random initialization functions (`init_weight_w_i_h`, `init_weight_w_h_h`, `init_weight_w_h_o`, `init_b_h`, `init_b_o`). |
+| `gen.c` | SDL/SDL_image plumbing (`load_image`, `get_pixel`), `init_input_layer()` to turn a BMP into the 784-float input vector, and `gen()`, the main training loop over the dataset. |
+
+## Build & Run
+
+The code targets **SDL 1.2** (`#include <SDL/SDL.h>`). On Debian/Ubuntu:
+
+```bash
+sudo apt-get install libsdl1.2-dev libsdl-image1.2-dev
+gcc main.c ite.c init.c gen.c -o mlp $(sdl-config --cflags --libs) -lSDL_image -lm
+```
+
+Run (the program trains first, then classifies the given image):
+
+```bash
+./mlp path/to/digit.bmp
 ```
